@@ -1,0 +1,720 @@
+{% extends 'main.html' %}
+{% load static %}
+
+{% block title %}New Order | CHMS Shop{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Create New Order</h1>
+    <div class="header-actions">
+        <a href="{% url 'order_list' %}" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Orders</a>
+    </div>
+</div>
+
+<div class="edit-form-container">
+    <form method="post" action="{% url 'order_add' %}" id="order-form">
+        {% csrf_token %}
+        
+        <div class="form-card">
+            <div class="form-header">
+                <h2>Customer Information</h2>
+            </div>
+            
+            <div class="form-body">
+                <div class="form-group">
+                    <label for="customer">Customer*</label>
+                    <div class="input-with-button">
+                        <select id="customer" name="customer" required>
+                            <option value="">Select Customer</option>
+                            {% for customer in customers %}
+                                <option value="{{ customer.customer_id }}" {% if selected_customer and selected_customer.customer_id == customer.customer_id %}selected{% endif %}>
+                                    {{ customer.name }} ({{ customer.customer_id }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" id="add-customer-btn" class="btn btn-sm btn-primary">+ New Customer</button>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="due-date">Due Date</label>
+                        <input type="date" id="due-date" name="due_date">
+                    </div>
+                    <div class="form-group">
+                        <label for="payment-method">Payment Method*</label>
+                        <select id="payment-method" name="payment_method" required>
+                            <option value="cash">Cash</option>
+                            <option value="credit_card">Credit Card</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="paypal">PayPal</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="payment-status">Payment Status*</label>
+                        <select id="payment-status" name="payment_status" required>
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="partial">Partial</option>
+                            <option value="refunded">Refunded</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="delivery-status">Delivery Status*</label>
+                        <select id="delivery-status" name="delivery_status" required>
+                            <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="Invoiced">Invoiced</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-card">
+            <div class="form-header">
+                <h2>Order Items</h2>
+            </div>
+            
+            <div class="form-body">
+                <div id="order-items">
+                    <div class="order-item">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="product-1">Product*</label>
+                                <select id="product-1" name="products[]" required class="product-select">
+                                    <option value="">Select Product</option>
+                                    {% for product in products %}
+                                        <option value="{{ product.product_id }}" data-price="{{ product.price }}">
+                                            {{ product.name }} ({{ product.product_id }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="quantity-1">Quantity*</label>
+                                <input type="number" id="quantity-1" name="quantities[]" min="1" value="1" required class="quantity-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="price-1">Price*</label>
+                                <input type="number" id="price-1" name="prices[]" step="0.01" required class="price-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Subtotal</label>
+                                <input type="text" class="subtotal" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" id="add-item-btn" class="add-item-btn">+ Add Another Product</button>
+                </div>
+                
+                <div class="order-summary">
+                    <div class="summary-row">
+                        <span>Total Items:</span>
+                        <span id="total-items">1</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Total Amount:</span>
+                        <span id="total-amount">$0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{% url 'order_list' %}" class="cancel-btn">Cancel</a>
+            <button type="submit" class="save-btn">Create Order</button>
+        </div>
+    </form>
+</div>
+
+<!-- Customer Modal -->
+<div class="modal" id="customer-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add New Customer</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="customer-form">
+                <div class="form-group">
+                    <label for="customer-name">Name*</label>
+                    <input type="text" id="customer-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="customer-email">Email</label>
+                    <input type="email" id="customer-email" name="email" >
+                </div>
+                <div class="form-group">
+                    <label for="customer-phone">Phone</label>
+                    <input type="text" id="customer-phone" name="phone">
+                </div>
+                <div class="form-group">
+                    <label for="customer-address">Address</label>
+                    <textarea id="customer-address" name="address" rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="cancel-customer-btn" class="cancel-btn">Cancel</button>
+                    <button type="submit" class="save-btn">Save Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast-notification"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show toast message if provided in URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const message = urlParams.get('message');
+        const error = urlParams.get('error');
+        
+        if (message) {
+            showToast(message, false);
+        } else if (error) {
+            showToast(error, true);
+        }
+        
+        // Customer Modal Functionality
+        const addCustomerBtn = document.getElementById('add-customer-btn');
+        const customerModal = document.getElementById('customer-modal');
+        const closeBtn = customerModal.querySelector('.close');
+        const cancelCustomerBtn = document.getElementById('cancel-customer-btn');
+        const customerForm = document.getElementById('customer-form');
+        const customerSelect = document.getElementById('customer');
+        
+        // Open modal when Add Customer button is clicked
+        addCustomerBtn.addEventListener('click', function() {
+            customerModal.style.display = 'block';
+        });
+        
+        // Close modal when X is clicked
+        closeBtn.addEventListener('click', function() {
+            customerModal.style.display = 'none';
+        });
+        
+        // Close modal when Cancel button is clicked
+        cancelCustomerBtn.addEventListener('click', function() {
+            customerModal.style.display = 'none';
+        });
+        
+        // Close modal when clicking outside of it
+        window.addEventListener('click', function(event) {
+            if (event.target === customerModal) {
+                customerModal.style.display = 'none';
+            }
+        });
+        
+        // Handle customer form submission
+        customerForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // Get form data
+            const formData = new FormData(customerForm);
+            const customerData = {
+                name: formData.get('name'),
+                email: formData.get('email'),
+                phone: formData.get('phone'),
+                address: formData.get('address')
+            };
+            
+            // Send AJAX request to create customer
+            fetch('/api/create_customer/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(customerData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Add new customer to select dropdown
+                    const newOption = document.createElement('option');
+                    newOption.value = data.customer_id;
+                    newOption.text = `${data.name} (${data.customer_id})`;
+                    newOption.selected = true;
+                    customerSelect.appendChild(newOption);
+                    
+                    // Close modal and show success message
+                    customerModal.style.display = 'none';
+                    showToast(`Customer ${data.name} created successfully`, false);
+                    
+                    // Reset form
+                    customerForm.reset();
+                } else {
+                    showToast(`Error: ${data.error}`, true);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('An error occurred while creating the customer. Please try again.', true);
+            });
+        });
+        
+        // Add new item to order
+        const addItemBtn = document.getElementById('add-item-btn');
+        const orderItems = document.getElementById('order-items');
+        
+        if (addItemBtn && orderItems) {
+            let itemCount = 1;
+            
+            addItemBtn.addEventListener('click', function() {
+                itemCount++;
+                
+                const newItem = document.createElement('div');
+                newItem.className = 'order-item';
+                newItem.innerHTML = `
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="product-${itemCount}">Product*</label>
+                            <select id="product-${itemCount}" name="products[]" required class="product-select">
+                                <option value="">Select Product</option>
+                                {% for product in products %}
+                                    <option value="{{ product.product_id }}" data-price="{{ product.price }}">
+                                        {{ product.name }} ({{ product.product_id }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantity-${itemCount}">Quantity*</label>
+                            <input type="number" id="quantity-${itemCount}" name="quantities[]" min="1" value="1" required class="quantity-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="price-${itemCount}">Price*</label>
+                            <input type="number" id="price-${itemCount}" name="prices[]" step="0.01" required class="price-input" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Subtotal</label>
+                            <input type="text" class="subtotal" readonly>
+                        </div>
+                        <button type="button" class="remove-item-btn"><i class="fas fa-times"></i></button>
+                    </div>
+                `;
+                
+                orderItems.appendChild(newItem);
+                
+                // Update event listeners
+                updateProductListeners();
+                updateQuantityListeners();
+                updateItemCount();
+                
+                // Add remove button functionality
+                const removeBtn = newItem.querySelector('.remove-item-btn');
+                removeBtn.addEventListener('click', function() {
+                    newItem.remove();
+                    updateItemCount();
+                    calculateTotal();
+                });
+            });
+        }
+        
+        // Update product price when selected
+        function updateProductListeners() {
+            const productSelects = document.querySelectorAll('.product-select');
+            
+            productSelects.forEach(select => {
+                // Ensure we don't add multiple listeners to the same element
+                select.removeEventListener('change', handleProductChange);
+                select.addEventListener('change', handleProductChange);
+            });
+        }
+        
+        function handleProductChange() {
+            const selectedOption = this.options[this.selectedIndex];
+            const price = selectedOption.getAttribute('data-price');
+            const row = this.closest('.order-item');
+            const priceInput = row.querySelector('.price-input');
+            const quantityInput = row.querySelector('.quantity-input');
+            const subtotalInput = row.querySelector('.subtotal');
+            
+            if (price) {
+                priceInput.value = price;
+                const subtotal = price * quantityInput.value;
+                subtotalInput.value = '$' + subtotal.toFixed(2);
+                calculateTotal();
+            } else {
+                priceInput.value = '';
+                subtotalInput.value = '';
+            }
+        }
+        
+        // Update subtotal when quantity changes
+        function updateQuantityListeners() {
+            const quantityInputs = document.querySelectorAll('.quantity-input');
+            
+            quantityInputs.forEach(input => {
+                // Ensure we don't add multiple listeners to the same element
+                input.removeEventListener('input', handleQuantityChange);
+                input.addEventListener('input', handleQuantityChange);
+            });
+        }
+        
+        function handleQuantityChange() {
+            const row = this.closest('.order-item');
+            const priceInput = row.querySelector('.price-input');
+            const subtotalInput = row.querySelector('.subtotal');
+            
+            if (priceInput.value) {
+                const subtotal = priceInput.value * this.value;
+                subtotalInput.value = '$' + subtotal.toFixed(2);
+                calculateTotal();
+            }
+        }
+        
+        // Update item count
+        function updateItemCount() {
+            const totalItems = document.getElementById('total-items');
+            const itemCount = document.querySelectorAll('.order-item').length;
+            
+            if (totalItems) {
+                totalItems.textContent = itemCount;
+            }
+        }
+        
+        // Calculate total amount
+        function calculateTotal() {
+            const totalAmountElem = document.getElementById('total-amount');
+            const subtotals = document.querySelectorAll('.subtotal');
+            
+            let total = 0;
+            
+            subtotals.forEach(subtotal => {
+                const value = subtotal.value.replace('$', '');
+                if (value && !isNaN(value)) {
+                    total += parseFloat(value);
+                }
+            });
+            
+            if (totalAmountElem) {
+                totalAmountElem.textContent = '$' + total.toFixed(2);
+            }
+        }
+        
+        // Initialize listeners
+        updateProductListeners();
+        updateQuantityListeners();
+        
+        // Helper function to show toast notifications
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast-notification');
+            if (!toast) return;
+            
+            toast.textContent = message;
+            toast.className = 'toast';
+            if (isError) toast.classList.add('error');
+            
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Helper function to get cookie
+        function getCookie(name) {
+            var value = "; " + document.cookie;
+            var parts = value.split("; " + name + "=");
+            if (parts.length == 2) return parts.pop().split(";").shift();
+        }
+    });
+</script>
+
+<style>
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-content {
+        background-color: #fff;
+        margin: 10% auto;
+        padding: 0;
+        border-radius: 5px;
+        width: 500px;
+        max-width: 90%;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .modal-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-header h3 {
+        margin: 0;
+        font-size: 18px;
+    }
+    
+    .close {
+        color: #aaa;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .close:hover {
+        color: #333;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .input-with-button {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .input-with-button select {
+        flex: 1;
+    }
+    
+    .btn-sm {
+        padding: 5px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+    
+    .btn-primary:hover {
+        background-color: #0069d9;
+    }
+    
+    .edit-form-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    
+    .form-card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background-color: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .form-header h2 {
+        margin: 0;
+        font-size: 18px;
+        color: #333;
+    }
+    
+    .form-body {
+        padding: 20px;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        align-items: flex-end;
+        position: relative;
+    }
+    
+    .form-row .form-group {
+        flex: 1;
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 5px;
+        color: #555;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    input[readonly] {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+    
+    .add-item-btn {
+        background: none;
+        border: 1px solid #3a57e8;
+        color: #3a57e8;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-bottom: 20px;
+    }
+    
+    .remove-item-btn {
+        background: none;
+        border: none;
+        color: #c03221;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 0;
+        margin-left: 10px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .order-item {
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .order-item:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+    
+    .order-summary {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    
+    .summary-row:last-child {
+        margin-bottom: 0;
+        padding-top: 10px;
+        border-top: 1px solid #ddd;
+        font-weight: bold;
+    }
+    
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .cancel-btn, .save-btn {
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .cancel-btn {
+        background-color: #f2f2f2;
+        border: 1px solid #ddd;
+        color: #333;
+    }
+    
+    .save-btn {
+        background-color: #3a57e8;
+        border: none;
+        color: white;
+    }
+    
+    /* Header Actions */
+    .header-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .back-btn {
+        padding: 8px 15px;
+        border-radius: 4px;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .back-btn i {
+        margin-right: 8px;
+    }
+    
+    /* Toast Notification */
+    .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #1aa053;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1100;
+        display: none;
+        animation: toastFadeIn 0.3s ease, toastFadeOut 0.3s ease 2.7s;
+    }
+    
+    .toast.error {
+        background-color: #c03221;
+    }
+    
+    @keyframes toastFadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes toastFadeOut {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(20px); }
+    }
+</style>
+{% endblock %} 

@@ -1,0 +1,2 @@
+# This file ensures the products directory is tracked by Git
+# while the actual product image files are ignored 

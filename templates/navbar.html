@@ -1,0 +1,42 @@
+{% load static %}
+    <div class="dashboard">
+        <!-- Mobile Menu Toggle -->
+        <div class="mobile-menu-toggle">
+            <button id="sidebar-toggle"><i class="fas fa-bars"></i></button>
+        </div>
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="{% static 'img/chms.jpg' %}" alt="CHMS Logo">
+                    <h2>CHMS Shop</h2>
+                </div>
+                <button class="close-sidebar" id="close-sidebar"><i class="fas fa-times"></i></button>
+            </div>
+            <ul class="nav-links">
+                {% if request.user.is_superuser %}
+                <li {% if request.path == '/' or request.path == '/dashboard/' %}class="active"{% endif %}>
+                    <a href="{% url 'dashboard' %}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                </li>
+                {% endif %}
+                <li {% if '/inventory/' in request.path %}class="active"{% endif %}>
+                    <a href="{% url 'product_list' %}"><i class="fas fa-box"></i> Inventory</a>
+                </li>
+                <li {% if '/orders/' in request.path %}class="active"{% endif %}>
+                    <a href="{% url 'order_list' %}"><i class="fas fa-shopping-cart"></i> Orders</a>
+                </li>
+                <li {% if '/customers/' in request.path %}class="active"{% endif %}>
+                    <a href="{% url 'customer_list' %}"><i class="fas fa-users"></i> Customers</a>
+                </li>
+                <li {% if '/invoices/' in request.path %}class="active"{% endif %}>
+                    <a href="{% url 'invoice_list' %}"><i class="fas fa-chart-bar"></i> Invoices</a>
+                </li>
+                <li>
+                    <a href="#"><i class="fas fa-cog"></i> Settings</a>
+                </li>
+            </ul>
+            <div class="logout">
+                <a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </div>
+    </div>

@@ -1,0 +1,249 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | CHMS Shop</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-container {
+            display: flex;
+            width: 900px;
+            height: 550px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #fff;
+        }
+        
+        .login-image {
+            width: 50%;
+            background-image: url('https://images.unsplash.com/photo-1581287053822-fd7bf4f4bfec?ixlib=rb-4.0.3&auto=format&fit=crop&w=1400&q=80');
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+        
+        .login-image::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        
+        .login-image-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 80%;
+            color: white;
+            z-index: 1;
+        }
+        
+        .login-image-content img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin-bottom: 20px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .login-image-content h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .login-image-content p {
+            font-size: 16px;
+            line-height: 1.6;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        
+        .login-form {
+            width: 50%;
+            padding: 60px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .login-form h1 {
+            font-size: 32px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .login-form p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 14px 15px 14px 45px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #3a57e8;
+            box-shadow: 0 0 0 3px rgba(58, 87, 232, 0.1);
+        }
+        
+        .form-group i {
+            position: absolute;
+            left: 15px;
+            top: 42px;
+            color: #aaa;
+            font-size: 18px;
+        }
+        
+        .remember-me {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .remember-me input {
+            margin-right: 8px;
+        }
+        
+        .login-btn {
+            background-color: #3a57e8;
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(58, 87, 232, 0.2);
+        }
+        
+        .login-btn:hover {
+            background-color: #2a47d8;
+        }
+        
+        .error-message {
+            color: #c03221;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: rgba(192, 50, 33, 0.1);
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        @media (max-width: 900px) {
+            .login-container {
+                width: 90%;
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .login-image, .login-form {
+                width: 100%;
+            }
+            
+            .login-image {
+                height: 240px;
+            }
+            
+            .login-form {
+                padding: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-image">
+            <div class="login-image-content">
+                <img src="{% static 'img/chms.jpg' %}" alt="CHMS Logo">
+                <h2>CHMS HOME</h2>
+                <p>Inventory & Invoice Management System</p>
+            </div>
+        </div>
+        <div class="login-form">
+            <h1>Welcome Back</h1>
+            <p>Please sign in to access your dashboard</p>
+            
+            {% if error %}
+            <div class="error-message show">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <form id="login-form" method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="username">Email</label>
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="username" name="username" placeholder="your@email.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                </div>
+                
+                <div class="remember-me">
+                    <input type="checkbox" id="remember" name="remember">
+                    <label for="remember">Remember me</label>
+                </div>
+                
+                <button type="submit" class="login-btn">Sign In</button>
+                
+                {% if next %}
+                <input type="hidden" name="next" value="{{ next }}">
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</body>
+</html> 

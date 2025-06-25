@@ -1,0 +1,432 @@
+{% extends 'main.html' %}
+{% load static %}
+
+{% block title %}Orders Management | CHMS Shop{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Orders Management</h1>
+    <a href="{% url 'order_add' %}" class="new-order-btn" id="new-order-btn"><i class="fas fa-plus"></i> New Order</a>
+</div>
+
+<!-- Orders Statistics -->
+<div class="stats-container">
+    <div class="stat-card">
+        <i class="fas fa-shopping-cart"></i>
+        <div class="stat-info">
+            <h3>Total Orders</h3>
+            <p>{{ orders.count }}</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-clock"></i>
+        <div class="stat-info">
+            <h3>Pending</h3>
+            <p>{{ pending_count }}</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-truck"></i>
+        <div class="stat-info">
+            <h3>Shipped</h3>
+            <p>{{ shipped_count }}</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-check-circle"></i>
+        <div class="stat-info">
+            <h3>Delivered</h3>
+            <p>{{ delivered_count }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Orders Controls -->
+<div class="inventory-section">
+    <div class="inventory-filters">
+        <input type="text" id="order-search" placeholder="Search orders...">
+        <select id="filter-date">
+            <option value="all">All Orders</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="last_month">Last Month</option>
+        </select>
+        <select id="filter-status">
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+        </select>
+        <select id="sort-by">
+            <option value="date_desc">Sort by: Date (Newest)</option>
+            <option value="date_asc">Sort by: Date (Oldest)</option>
+            <option value="amount_desc">Sort by: Amount (High-Low)</option>
+            <option value="amount_asc">Sort by: Amount (Low-High)</option>
+        </select>
+        <button class="filter-btn"><i class="fas fa-filter"></i> Apply Filters</button>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="inventory-table">
+        <table>
+            <thead>
+                <tr>
+                    <th><input type="checkbox"></th>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Due Date</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Payment</th>
+                    <th>Payment Status</th>
+                    <th>Delivery Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if orders %}
+                    {% for order in orders %}
+                            <tr>
+                                <td><input type="checkbox"></td>
+                        <td>{{ order.order_id }}</td>
+                        <td>{{ order.customer.name }}</td>
+                        <td>{{ order.order_date|date:"d M Y" }}</td>
+                        <td>{{ order.due_date|date:"d M Y"|default:"—" }}</td>
+                        <td>{{ order.items.count }}</td>
+                        <td>${{ order.total_amount|floatformat:2 }}</td>
+                        <td>{{ order.get_payment_method_display }}</td>
+                        <td><span class="status {{ order.payment_status }}">{{ order.get_payment_status_display }}</span></td>
+                        <td><span class="status {{ order.delivery_status }}">{{ order.get_delivery_status_display }}</span></td>
+                        <td class="actions">
+                            <a href="{% url 'order_detail' order.order_id %}" class="view-btn" title="View Order"><i class="fas fa-eye"></i></a>
+                            <a href="{% url 'order_edit' order.order_id %}" class="edit-btn" title="Edit Order"><i class="fas fa-edit"></i></a>
+                            {% comment %} <a href="{% url 'generate_invoice_for_order' order.order_id %}" class="invoice-btn" title="Generate Invoice"><i class="fas fa-file-invoice"></i></a> {% endcomment %}
+                            <a href="{% url 'order_delete' order.order_id %}" class="delete-btn" title="Delete Order"><i class="fas fa-trash"></i></a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="11" class="no-data">No orders found</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    {% if is_paginated %}
+        <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page=1" class="page-btn"><i class="fas fa-angle-double-left"></i></a>
+            <a href="?page={{ page_obj.previous_page_number }}" class="page-btn"><i class="fas fa-angle-left"></i></a>
+        {% endif %}
+        
+        {% for num in page_obj.paginator.page_range %}
+            {% if num == page_obj.number %}
+                <span class="page-btn active">{{ num }}</span>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <a href="?page={{ num }}" class="page-btn">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+        
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="page-btn"><i class="fas fa-angle-right"></i></a>
+            <a href="?page={{ page_obj.paginator.num_pages }}" class="page-btn"><i class="fas fa-angle-double-right"></i></a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast-notification"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Search functionality
+        const searchInput = document.getElementById('order-search');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function() {
+                const searchText = this.value.toLowerCase();
+                const rows = document.querySelectorAll('tbody tr');
+                
+                rows.forEach(row => {
+                    const orderId = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                    const customer = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+                    
+                    if (orderId.includes(searchText) || customer.includes(searchText)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Show toast function
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast-notification');
+            if (!toast) return;
+            
+            toast.textContent = message;
+            toast.className = 'toast';
+            if (isError) toast.classList.add('error');
+            
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // Show toast message if provided in URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const message = urlParams.get('message');
+        const error = urlParams.get('error');
+        
+        if (message) {
+            showToast(message, false);
+        } else if (error) {
+            showToast(error, true);
+        }
+    });
+</script>
+
+<style>
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .modal-content {
+        position: relative;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        max-height: 90vh;
+        overflow-y: auto;
+        animation: modalFadeIn 0.3s ease;
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .close-modal {
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .close-modal:hover {
+        color: #3a57e8;
+    }
+    
+    @keyframes modalFadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Order Form Styles */
+    .order-item {
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+            position: relative;
+    }
+    
+    .remove-item-btn {
+        background: none;
+            border: none;
+        color: #c03221;
+        position: absolute;
+        right: 0;
+        top: 10px;
+            cursor: pointer;
+        font-size: 18px;
+    }
+    
+    .add-item-btn {
+        background: none;
+        border: 1px solid #3a57e8;
+        color: #3a57e8;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-bottom: 20px;
+    }
+    
+    .order-summary {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    
+    .summary-row:last-child {
+        margin-bottom: 0;
+        padding-top: 10px;
+        border-top: 1px solid #ddd;
+        font-weight: bold;
+    }
+    
+    /* Status Styles */
+    .status {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 30px;
+        font-size: 12px;
+        font-weight: 500;
+        }
+        
+        .status.paid {
+        background-color: rgba(26, 160, 83, 0.2);
+        color: #1aa053;
+    }
+    
+    .status.pending {
+        background-color: rgba(246, 161, 35, 0.2);
+        color: #f6a123;
+    }
+    
+    .status.partial {
+        background-color: rgba(59, 125, 221, 0.2);
+        color: #3b7ddd;
+    }
+    
+    .status.refunded, .status.cancelled {
+        background-color: rgba(192, 50, 33, 0.2);
+        color: #c03221;
+        }
+        
+        .status.failed {
+        background-color: rgba(192, 50, 33, 0.2);
+        color: #c03221;
+    }
+    
+    .status.shipped {
+        background-color: rgba(59, 125, 221, 0.2);
+        color: #3b7ddd;
+    }
+    
+    .status.processing {
+        background-color: rgba(246, 161, 35, 0.2);
+        color: #f6a123;
+    }
+    
+    .status.delivered {
+        background-color: rgba(26, 160, 83, 0.2);
+        color: #1aa053;
+    }
+    
+    /* Toast Styles */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #1aa053;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1100;
+            display: none;
+            animation: toastFadeIn 0.3s ease, toastFadeOut 0.3s ease 2.7s;
+        }
+        
+        .toast.error {
+            background-color: #c03221;
+        }
+        
+        @keyframes toastFadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes toastFadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(20px); }
+        }
+
+    .actions a {
+        margin-right: 5px;
+        padding: 5px;
+            border-radius: 4px;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+    }
+    
+    .view-btn {
+        background-color: #3a57e8;
+    }
+    
+    .edit-btn {
+        background-color: #079aa2;
+    }
+    
+    .invoice-btn {
+        background-color: #1aa053;
+    }
+    
+    .delete-btn {
+        background-color: #c03221;
+    }
+
+    .new-order-btn {
+        background-color: #3a57e8;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 10px 20px;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .new-order-btn i {
+        margin-right: 8px;
+        font-size: 16px;
+    }
+    
+    .new-order-btn:hover {
+        background-color: #2944d2;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+</style>
+{% endblock %} 

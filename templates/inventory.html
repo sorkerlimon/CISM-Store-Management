@@ -1,0 +1,635 @@
+{% extends 'main.html' %}
+{% load static %}
+
+{% block title %}Inventory | CHMS Shop{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Inventory Management</h1>
+    <div class="header-actions">
+        <button class="add-btn" id="new-product-btn"><i class="fas fa-plus"></i> New Product</button>
+        <button class="upload-btn" id="upload-excel-btn"><i class="fas fa-file-excel"></i> Upload Excel</button>
+    </div>
+</div>
+
+<!-- Inventory Statistics -->
+<div class="stats-container">
+    <div class="stat-card">
+        <i class="fas fa-box"></i>
+        <div class="stat-info">
+            <h3>Total Products</h3>
+            <p>{{ products.count }}</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-warehouse"></i>
+        <div class="stat-info">
+            <h3>Warehouse</h3>
+            <p>{{ warehouse_count }}</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-home"></i>
+        <div class="stat-info">
+            <h3>CHMS Stock</h3>
+            <p>{{ chms_count }}</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <i class="fas fa-external-link-alt"></i>
+        <div class="stat-info">
+            <h3>Outside</h3>
+            <p>{{ outside_count }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Inventory Controls -->
+<div class="inventory-section">
+    <div class="inventory-filters">
+        <input type="text" placeholder="Search products..." id="product-search">
+        <select id="filter-location">
+            <option value="all">All Locations</option>
+            <option value="warehouse">Warehouse</option>
+            <option value="chms">CHMS</option>
+            <option value="outside">Outside</option>
+        </select>
+        <select id="sort-by">
+            <option value="name">Sort by: Name</option>
+            <option value="id">Sort by: ID</option>
+            <option value="price-high">Sort by: Price (High-Low)</option>
+            <option value="price-low">Sort by: Price (Low-High)</option>
+            <option value="stock">Sort by: Stock Level</option>
+        </select>
+        <button class="filter-btn"><i class="fas fa-filter"></i> Apply Filters</button>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="inventory-table">
+        <table>
+            <thead>
+                <tr>
+                    <th><input type="checkbox"></th>
+                    <th>Product ID</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>CHMS</th>
+                    <th>Outside</th>
+                    <th>Total</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if products %}
+                    {% for product in products %}
+                            <tr>
+                                <td><input type="checkbox"></td>
+                        <td>{{ product.product_id }}</td>
+                        <td>{{ product.name }}</td>
+                        <td>aed {{ product.price }}</td>
+                        <td>{{ product.warehouse_quantity }}</td>
+                        <td>{{ product.chms_quantity }}</td>
+                        <td>{{ product.outside_quantity }}</td>
+                        <td>{{ product.total_quantity }}</td>
+                                <td class="actions">
+                            <button class="view-btn" title="View Product"><i class="fas fa-eye"></i></button>
+                            <a href="{% url 'product_edit' product.product_id %}" class="edit-btn" title="Edit Product"><i class="fas fa-edit"></i></a>
+                            <a href="{% url 'product_delete' product.product_id %}" class="delete-btn" title="Delete Product"><i class="fas fa-trash"></i></a>
+                                </td>
+                            </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="10" class="no-data">No products found</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if is_paginated %}
+        <div class="pagination">
+        <span class="step-links">
+            {% if page_obj.has_previous %}
+                <a href="?page=1"><i class="fas fa-angle-double-left"></i></a>
+                <a href="?page={{ page_obj.previous_page_number }}"><i class="fas fa-angle-left"></i></a>
+            {% endif %}
+            
+            <span class="current">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}"><i class="fas fa-angle-right"></i></a>
+                <a href="?page={{ page_obj.paginator.num_pages }}"><i class="fas fa-angle-double-right"></i></a>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add/Edit Product Modal -->
+<div class="modal" id="product-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; width: 90%; margin: 0 auto;">
+    <div class="modal-header">
+        <h2 id="modal-title">Add New Product</h2>
+        <span class="close-modal">&times;</span>
+    </div>
+    <div class="modal-body">
+        <form id="product-form" method="post" action="{% url 'product_add' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="product-name">Product Name*</label>
+                <input type="text" id="product-name" name="name" required placeholder="Enter product name">
+            </div>
+                
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="product-price">Price ($)*</label>
+                    <input type="number" id="product-price" name="price" min="0" step="0.01" required placeholder="0.00">
+                </div>
+            </div>
+                
+            <div class="form-section">
+                <h3>Stock Quantities</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="warehouse-quantity">WH QTY</label>
+                        <input type="number" id="warehouse-quantity" name="warehouse_quantity" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="chms-quantity">CHMS</label>
+                        <input type="number" id="chms-quantity" name="chms_quantity" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="outside-quantity">Outside</label>
+                        <input type="number" id="outside-quantity" name="outside_quantity" min="0" value="0">
+                    </div>
+                </div>
+            </div>
+                
+            <div class="form-actions">
+                <button type="button" class="cancel-btn">Cancel</button>
+                <button type="submit" class="save-btn">Save Product</button>
+            </div>
+        </form>
+    </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal" id="delete-confirmation-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px; width: 90%; margin: 0 auto;">
+        <div class="modal-header">
+            <h2>Confirm Delete</h2>
+            <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete this product? This action cannot be undone.</p>
+            <form id="delete-form" method="post">
+                {% csrf_token %}
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn">Cancel</button>
+                    <button type="submit" class="delete-confirm-btn" style="background-color: #c03221; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer;">Delete Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Excel Upload Modal -->
+<div class="modal" id="excel-upload-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px; width: 90%; margin: 0 auto;">
+        <div class="modal-header">
+            <h2>Upload Products from Excel</h2>
+            <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="excel-upload-form" method="post" action="{% url 'upload_products_excel' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="excel-file">Select Excel File (.xlsx)</label>
+                    <input type="file" id="excel-file" name="excel_file" accept=".xlsx" required>
+                    <small class="help-text">Your Excel file should have columns for: Product Name, Price, WH QTY, CHMS, Outside</small>
+                </div>
+                <div id="upload-progress" style="display: none;">
+                    <div class="progress-container">
+                        <div class="progress-spinner"></div>
+                        <div id="upload-status">Uploading and processing products...</div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn">Cancel</button>
+                    <button type="submit" class="save-btn">Upload Products</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast-notification"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Excel Upload Button
+        const uploadExcelBtn = document.getElementById('upload-excel-btn');
+        const excelUploadModal = document.getElementById('excel-upload-modal');
+        const excelUploadForm = document.getElementById('excel-upload-form');
+        
+        if (uploadExcelBtn && excelUploadModal) {
+            uploadExcelBtn.addEventListener('click', function() {
+                excelUploadModal.style.display = 'flex';
+            });
+            
+            // Handle form submission
+            excelUploadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const uploadProgress = document.getElementById('upload-progress');
+                const uploadStatus = document.getElementById('upload-status');
+                const submitButton = excelUploadForm.querySelector('button[type="submit"]');
+                
+                // Show progress indicator
+                uploadProgress.style.display = 'block';
+                submitButton.disabled = true;
+                
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(`Successfully added ${data.count} products from Excel file`, false);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        uploadProgress.style.display = 'none';
+                        submitButton.disabled = false;
+                        showToast(`Error: ${data.error}`, true);
+                    }
+                })
+                .catch(error => {
+                    uploadProgress.style.display = 'none';
+                    submitButton.disabled = false;
+                    showToast('An error occurred during upload. Please try again.', true);
+                    console.error('Error:', error);
+                });
+            });
+        }
+        
+        // Search functionality
+        const searchInput = document.getElementById('product-search');
+        searchInput.addEventListener('keyup', function() {
+            const searchText = this.value.toLowerCase();
+            const rows = document.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const productName = row.children[3].textContent.toLowerCase();  // Updated index for name
+                const productId = row.children[1].textContent.toLowerCase();
+                
+                if (productName.includes(searchText) || productId.includes(searchText)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+        
+        // New Product button
+        const newProductBtn = document.getElementById('new-product-btn');
+        const productModal = document.getElementById('product-modal');
+        const productForm = document.getElementById('product-form');
+        
+        if (newProductBtn && productModal) {
+            newProductBtn.addEventListener('click', function() {
+                // Reset form for adding a new product
+                productForm.reset();
+                productForm.setAttribute('action', "{% url 'product_add' %}");
+                document.getElementById('modal-title').textContent = 'Add New Product';
+                productModal.style.display = 'flex';
+            });
+        }
+        
+        // View Product
+        const viewBtns = document.querySelectorAll('.view-btn');
+        viewBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const productId = row.children[1].textContent;
+                const productName = row.children[3].textContent;
+                const productPrice = row.children[4].textContent;
+                
+                alert(`Product: ${productName}\nID: ${productId}\nPrice: ${productPrice}`);
+                // In a real scenario, this would open a detailed view
+            });
+        });
+        
+        // Delete Product
+        const deleteBtns = document.querySelectorAll('.delete-btn');
+        const deleteConfirmationModal = document.getElementById('delete-confirmation-modal');
+        const deleteForm = document.getElementById('delete-form');
+        
+        deleteBtns.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const productUrl = this.getAttribute('href');
+                deleteForm.setAttribute('action', productUrl);
+                deleteConfirmationModal.style.display = 'flex';
+            });
+        });
+        
+        // Close modals
+        const closeModalBtns = document.querySelectorAll('.close-modal, .cancel-btn');
+        closeModalBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const modals = document.querySelectorAll('.modal');
+                modals.forEach(modal => {
+                    modal.style.display = 'none';
+                });
+            });
+        });
+        
+        // Show toast function
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast-notification');
+            if (!toast) return;
+            
+            toast.textContent = message;
+            toast.className = 'toast';
+            if (isError) toast.classList.add('error');
+            
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Show toast message if provided in URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const message = urlParams.get('message');
+        const error = urlParams.get('error');
+        
+        if (message) {
+            showToast(message, false);
+        } else if (error) {
+            showToast(error, true);
+        }
+    });
+</script>
+
+<style>
+    /* Product Image Styles */
+    .product-image {
+        width: 60px;
+    }
+    
+    .product-image img {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #eee;
+    }
+    
+    .no-image {
+        width: 50px;
+        height: 50px;
+        background-color: #f8f9fa;
+        border: 1px solid #eee;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #aaa;
+    }
+    
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .modal-content {
+        position: relative;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        max-height: 90vh;
+        overflow-y: auto;
+        animation: modalFadeIn 0.3s ease;
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .close-modal {
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .close-modal:hover {
+        color: #3a57e8;
+    }
+    
+    @keyframes modalFadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Upload Button Styles */
+    .upload-btn {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .upload-btn:hover {
+        background-color: #218838;
+    }
+    
+    .header-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    /* Progress Spinner */
+    .progress-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        margin: 15px 0;
+    }
+    
+    .progress-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3a57e8;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 15px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    #upload-status {
+        font-size: 14px;
+        color: #555;
+        text-align: center;
+    }
+    
+    .help-text {
+        display: block;
+        margin-top: 5px;
+        font-size: 12px;
+        color: #6c757d;
+    }
+    
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .form-row .form-group {
+        flex: 1;
+        margin-bottom: 0;
+    }
+    
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    input[type="file"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    input[type="file"] {
+        padding: 8px;
+    }
+    
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .cancel-btn, .save-btn {
+        padding: 10px 15px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+    
+    .cancel-btn {
+        background-color: #f2f2f2;
+        border: 1px solid #ddd;
+        color: #333;
+    }
+    
+    .save-btn {
+        background-color: #3a57e8;
+        border: none;
+        color: white;
+    }
+    
+    .form-section {
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .form-section h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 16px;
+        color: #333;
+    }
+    
+    /* Toast Styles */
+    .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #1aa053;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1100;
+        display: none;
+        animation: toastFadeIn 0.3s ease, toastFadeOut 0.3s ease 2.7s;
+    }
+    
+    .toast.error {
+        background-color: #c03221;
+    }
+    
+    @keyframes toastFadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes toastFadeOut {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(20px); }
+    }
+</style>
+{% endblock %} 

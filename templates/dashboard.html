@@ -1,0 +1,137 @@
+{% extends 'main.html' %}
+{% load static %}
+
+{% block title %}Dashboard | CHMS Shop{% endblock %}
+
+{% block content %}
+<!-- Dashboard Overview -->
+<div class="dashboard-overview">
+    <h1>Inventory Dashboard</h1>
+    <div class="stats-container">
+        <div class="stat-card">
+            <i class="fas fa-box"></i>
+            <div class="stat-info">
+                <h3>Total Products</h3>
+                <p>{{ products_count|default:"0" }}</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div class="stat-info">
+                <h3>Low Stock</h3>
+                <p>{{ low_stock_count|default:"0" }}</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-shopping-cart"></i>
+            <div class="stat-info">
+                <h3>Orders</h3>
+                <p>{{ orders_count|default:"0" }}</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <i class="fas fa-dollar-sign"></i>
+            <div class="stat-info">
+                <h3>Revenue</h3>
+                <p>${{ total_revenue|default:"0" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Access Cards -->
+<div class="quick-access">
+    <h2>Quick Access</h2>
+    <div class="quick-cards">
+        <a href="{% url 'product_list' %}" class="quick-card">
+            <i class="fas fa-box"></i>
+            <h3>Inventory Management</h3>
+            <p>Manage your products, stock levels, and categories</p>
+        </a>
+        <a href="{% url 'order_list' %}" class="quick-card">
+            <i class="fas fa-shopping-cart"></i>
+            <h3>Order Processing</h3>
+            <p>View and manage customer orders</p>
+        </a>
+        <a href="{% url 'customer_list' %}" class="quick-card">
+            <i class="fas fa-users"></i>
+            <h3>Customer Management</h3>
+            <p>View customer information and purchase history</p>
+        </a>
+        <a href="{% url 'invoice_list' %}" class="quick-card">
+            <i class="fas fa-file-invoice"></i>
+            <h3>Invoice Generator</h3>
+            <p>Create and manage invoices for your customers</p>
+        </a>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="recent-activity">
+    <div class="section-header">
+        <h2>Recent Activity</h2>
+        <a href="#" class="view-all">View All</a>
+    </div>
+    
+    <div class="activity-list">
+        {% if recent_activities %}
+            {% for activity in recent_activities %}
+                <div class="activity-item">
+                    <div class="activity-icon {% if activity.type == 'order' %}order-icon{% elif activity.type == 'low_stock' %}low-stock-icon{% elif activity.type == 'customer' %}customer-icon{% elif activity.type == 'shipped' %}order-icon{% elif activity.type == 'product' %}product-icon{% endif %}">
+                        <i class="fas {% if activity.type == 'order' %}fa-shopping-cart{% elif activity.type == 'low_stock' %}fa-exclamation-triangle{% elif activity.type == 'customer' %}fa-user-plus{% elif activity.type == 'shipped' %}fa-truck{% elif activity.type == 'product' %}fa-box{% endif %}"></i>
+                    </div>
+                    <div class="activity-details">
+                        <h4>{{ activity.title }} {% if activity.id %}<span class="order-id">{{ activity.id }}</span>{% endif %}</h4>
+                        <p>{{ activity.description }}</p>
+                        <span class="activity-time">{{ activity.time }}</span>
+                    </div>
+                    <div class="activity-action">
+                        <a href="{{ activity.link }}" class="view-btn"><i class="fas fa-eye"></i> View</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <!-- Default Activity Items if no dynamic data -->
+            <div class="activity-item">
+                <div class="activity-icon order-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <div class="activity-details">
+                    <h4>New Order <span class="order-id">#ORD7842</span></h4>
+                    <p>John Smith placed an order for $245.99</p>
+                    <span class="activity-time">Today, 10:30 AM</span>
+                </div>
+                <div class="activity-action">
+                    <a href="{% url 'order_list' %}" class="view-btn"><i class="fas fa-eye"></i> View</a>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon low-stock-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="activity-details">
+                    <h4>Low Stock Alert</h4>
+                    <p>Smart Watch (12 units remaining)</p>
+                    <span class="activity-time">Today, 9:45 AM</span>
+                </div>
+                <div class="activity-action">
+                    <a href="{% url 'product_list' %}" class="view-btn"><i class="fas fa-eye"></i> View</a>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="activity-icon customer-icon">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div class="activity-details">
+                    <h4>New Customer</h4>
+                    <p>Emily Johnson registered an account</p>
+                    <span class="activity-time">Yesterday, 3:20 PM</span>
+                </div>
+                <div class="activity-action">
+                    <a href="{% url 'customer_list' %}" class="view-btn"><i class="fas fa-eye"></i> View</a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,367 @@
+{% extends 'main.html' %}
+{% load static %}
+
+{% block title %}{{ customer.name }} | CHMS Shop{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Customer: {{ customer.name }}</h1>
+    <div class="header-actions">
+        <a href="{% url 'customer_edit' customer.customer_id %}" class="edit-btn"><i class="fas fa-edit"></i> Edit Customer</a>
+        <a href="{% url 'customer_list' %}" class="back-btn"><i class="fas fa-arrow-left"></i> Back to List</a>
+    </div>
+</div>
+
+<!-- Customer Profile -->
+<div class="profile-card">
+    <div class="profile-header">
+        <div class="customer-avatar">
+            <i class="fas fa-user"></i>
+        </div>
+        <div class="customer-info">
+            <h2>{{ customer.name }}</h2>
+            <p><i class="fas fa-id-card"></i> {{ customer.customer_id }}</p>
+            <p><i class="fas fa-calendar-alt"></i> Customer since: {{ customer.date_created|date:"M d, Y" }}</p>
+        </div>
+    </div>
+    <div class="profile-details">
+        <div class="detail-group">
+            <label>Email:</label>
+            <span>{{ customer.email|default:"—" }}</span>
+        </div>
+        <div class="detail-group">
+            <label>Phone:</label>
+            <span>{{ customer.phone|default:"—" }}</span>
+        </div>
+        <div class="detail-group">
+            <label>Address:</label>
+            <span>{{ customer.address|default:"—" }}</span>
+        </div>
+        <div class="detail-group">
+            <label>Total Orders:</label>
+            <span>{{ orders.count }}</span>
+        </div>
+        <div class="detail-group">
+            <label>Total Spent:</label>
+            <span>${{ total_spent|floatformat:2 }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Orders -->
+<div class="section-header">
+    <h2>Order History</h2>
+    <div class="section-actions">
+        <a href="{% url 'order_add' %}?customer={{ customer.customer_id }}" class="primary-btn"><i class="fas fa-plus"></i> New Order</a>
+    </div>
+</div>
+
+<div class="inventory-table">
+    <table>
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Items</th>
+                <th>Total Amount</th>
+                <th>Status</th>
+                <th>Payment</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if orders %}
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.order_id }}</td>
+                    <td>{{ order.order_date|date:"M d, Y" }}</td>
+                    <td>{{ order.items.count }}</td>
+                    <td>${{ order.total_amount|floatformat:2 }}</td>
+                    <td>
+                        <span class="status-badge {{ order.delivery_status }}">
+                            {{ order.get_delivery_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge {{ order.payment_status }}">
+                            {{ order.get_payment_status_display }}
+                        </span>
+                    </td>
+                    <td class="actions">
+                        <a href="{% url 'order_detail' order.order_id %}" class="view-btn" title="View Order"><i class="fas fa-eye"></i></a>
+                        <a href="{% url 'order_edit' order.order_id %}" class="edit-btn" title="Edit Order"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'generate_invoice_for_order' order.order_id %}" class="invoice-btn" title="Generate Invoice"><i class="fas fa-file-invoice"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="7" class="no-data">No orders found</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast-notification"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show toast message if provided in URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const message = urlParams.get('message');
+        const error = urlParams.get('error');
+        
+        if (message) {
+            showToast(message, false);
+        } else if (error) {
+            showToast(error, true);
+        }
+        
+        // Helper function to show toast notifications
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast-notification');
+            if (!toast) return;
+            
+            toast.textContent = message;
+            toast.className = 'toast';
+            if (isError) toast.classList.add('error');
+            
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    });
+</script>
+
+<style>
+    /* Profile Card Styles */
+    .profile-card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+        overflow: hidden;
+    }
+    
+    .profile-header {
+        display: flex;
+        padding: 25px;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .customer-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background-color: #3a57e8;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 20px;
+        flex-shrink: 0;
+    }
+    
+    .customer-avatar i {
+        font-size: 40px;
+    }
+    
+    .customer-info {
+        flex-grow: 1;
+    }
+    
+    .customer-info h2 {
+        margin: 0 0 10px;
+        font-size: 22px;
+        color: #333;
+    }
+    
+    .customer-info p {
+        margin: 5px 0;
+        color: #666;
+    }
+    
+    .customer-info i {
+        margin-right: 8px;
+        color: #888;
+    }
+    
+    .profile-details {
+        padding: 25px;
+    }
+    
+    .detail-group {
+        display: flex;
+        margin-bottom: 15px;
+    }
+    
+    .detail-group label {
+        width: 120px;
+        font-weight: 500;
+        color: #555;
+    }
+    
+    .detail-group span {
+        flex-grow: 1;
+        color: #333;
+    }
+    
+    /* Section Header */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .section-header h2 {
+        margin: 0;
+        font-size: 18px;
+        color: #333;
+    }
+    
+    /* Header Actions */
+    .header-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .edit-btn, .back-btn {
+        padding: 8px 15px;
+        border-radius: 4px;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .edit-btn {
+        background-color: #079aa2;
+        color: white;
+    }
+    
+    .back-btn {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .edit-btn i, .back-btn i {
+        margin-right: 8px;
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        display: inline-block;
+    }
+    
+    .status-badge.pending {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    
+    .status-badge.processing {
+        background-color: #17a2b8;
+        color: white;
+    }
+    
+    .status-badge.shipped {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .status-badge.delivered {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .status-badge.cancelled {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .status-badge.paid {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .status-badge.partial {
+        background-color: #17a2b8;
+        color: white;
+    }
+    
+    .status-badge.refunded {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .status-badge.failed {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    /* Action buttons */
+    .actions {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .view-btn, .edit-btn, .invoice-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8f9fa;
+        color: #3a57e8;
+        text-decoration: none;
+    }
+    
+    .edit-btn {
+        color: #079aa2;
+    }
+    
+    .invoice-btn {
+        color: #1aa053;
+    }
+    
+    /* Toast Notification */
+    .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #1aa053;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1100;
+        display: none;
+        animation: toastFadeIn 0.3s ease, toastFadeOut 0.3s ease 2.7s;
+    }
+    
+    .toast.error {
+        background-color: #c03221;
+    }
+    
+    @keyframes toastFadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes toastFadeOut {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(20px); }
+    }
+</style>
+{% endblock %} 

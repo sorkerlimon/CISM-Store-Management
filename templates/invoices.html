@@ -1,0 +1,656 @@
+{% extends 'main.html' %}
+{% load static %}
+
+{% block title %}Invoices | CHMS Shop{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Invoice Management</h1>
+</div>
+
+            <!-- Tabs Container -->
+<div class="tabs-container">
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="invoice-list">Invoice List</button>
+        <button class="tab-btn" data-tab="invoice-generator">Invoice Generator</button>
+    </div>
+
+                <!-- Tab Content -->
+<div class="tab-content">
+    <!-- Invoice List Tab -->
+    <div class="tab-pane active" id="invoice-list">
+        <div class="inventory-filters">
+            <input type="text" id="invoice-search" placeholder="Search invoices...">
+            <select id="filter-date">
+                    <option value="all">All Invoices</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="this_year">This Year</option>
+                            </select>
+                            <button class="filter-btn"><i class="fas fa-filter"></i> Apply Filters</button>
+                        </div>
+
+                        <div class="inventory-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th><input type="checkbox"></th>
+                                        <th>Invoice #</th>
+                                        <th>Customer</th>
+                                        <th>Issue Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        {% if invoices %}
+                            {% for invoice in invoices %}
+                                    <tr>
+                                        <td><input type="checkbox"></td>
+                                <td>{{ invoice.invoice_id }}</td>
+                                <td>{{ invoice.customer.name }}</td>
+                                <td>{{ invoice.created_date|date:"d M Y" }}</td>
+                                        <td>
+                                    <a href="{% url 'invoice_detail' invoice.invoice_id %}" class="view-invoice-btn" title="View Invoice"><i class="fas fa-eye"></i></a>
+                                    <a href="{% url 'invoice_delete' invoice.invoice_id %}" class="delete-btn" title="Delete Invoice"><i class="fas fa-trash"></i></a>
+                                        </td>
+                                    </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="no-data">No invoices found</td>
+                                    </tr>
+                        {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <div class="pagination">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1" class="page-btn"><i class="fas fa-angle-double-left"></i></a>
+                    <a href="?page={{ page_obj.previous_page_number }}" class="page-btn"><i class="fas fa-angle-left"></i></a>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if num == page_obj.number %}
+                        <span class="page-btn active">{{ num }}</span>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}" class="page-btn">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="page-btn"><i class="fas fa-angle-right"></i></a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}" class="page-btn"><i class="fas fa-angle-double-right"></i></a>
+                {% endif %}
+                </div>
+            {% endif %}
+    </div>
+
+                    <!-- Invoice Generator Tab (Hidden by default) -->
+    <div class="tab-pane" id="invoice-generator" style="display: none;">
+        <div class="invoice-generator">
+            <div class="invoice-form-container">
+                <form id="invoice-form" method="post" action="{% url 'generate_invoice' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="form-section">
+                        <h3>Customer Information</h3>
+                        <div class="form-group">
+                            <label for="customer-select">Select Customer</label>
+                            <select id="customer-select" name="customer" required>
+                                <option value="">-- Select a Customer --</option>
+                                {% for customer in customers %}
+                                    <option value="{{ customer.customer_id }}">{{ customer.name }} ({{ customer.customer_id }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="customer-name">Customer</label>
+                            <input type="text" id="customer-name" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>Order Selection</h3>
+                        <div class="form-group">
+                            <label>Select Orders</label>
+                            <div id="order-checkboxes" class="order-selection">
+                                <p class="no-orders">Select a customer to view their orders</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>Invoice Items</h3>
+                        <table class="invoice-items-table">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Order No</th>
+                                    <th>Rate</th>
+                                    <th>QTY</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-items">
+                                <!-- Items will be populated from the selected orders -->
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="4" class="text-right">Total</td>
+                                    <td id="total-display">0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                                            
+                        <div class="invoice-totals">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="total">Total Amount</label>
+                                    <input type="text" id="total" name="total_amount" value="0.00" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                                    
+                    <div class="form-actions">
+                        <button type="submit" class="primary-btn">Generate Invoice</button>
+                    </div>
+                </form>
+            </div>
+            
+            {% comment %} <div class="invoice-preview-container">
+                <h3>Preview</h3>
+                <div class="invoice-preview">
+                    <div class="placeholder-message">
+                        <i class="fas fa-file-invoice"></i>
+                        <p>Invoice preview will appear here</p>
+                    </div>
+                </div>
+            </div> {% endcomment %}
+        </div>
+    </div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast-notification"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tab switching logic
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+        
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove active class from all buttons
+                tabBtns.forEach(b => b.classList.remove('active'));
+                
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Hide all tab panes
+                tabPanes.forEach(pane => pane.style.display = 'none');
+                
+                // Show the corresponding tab pane
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(tabId).style.display = 'block';
+            });
+        });
+        
+        // Invoice generation button
+        const generateBtn = document.getElementById('generate-invoice-btn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', function() {
+                // Switch to invoice generator tab
+                document.querySelector('.tab-btn[data-tab="invoice-generator"]').click();
+            });
+        }
+        
+        // Customer selection change handler
+        const customerSelect = document.getElementById('customer-select');
+        if (customerSelect) {
+            customerSelect.addEventListener('change', function() {
+                const customerId = this.value;
+                if (customerId) {
+                    fetchCustomerOrders(customerId);
+                } else {
+                    document.getElementById('customer-name').value = '';
+                    document.getElementById('order-checkboxes').innerHTML = '<p class="no-orders">Select a customer to view their orders</p>';
+                }
+            });
+        }
+        
+        // Function to fetch customer orders
+        function fetchCustomerOrders(customerId) {
+            // Show loading indicator
+            const orderCheckboxes = document.getElementById('order-checkboxes');
+            orderCheckboxes.innerHTML = '<p class="loading-orders"><i class="fas fa-spinner fa-spin"></i> Loading orders...</p>';
+            
+            // Fetch customer details
+            fetch(`/api/customer/${customerId}/`)
+                .then(response => response.json())
+                .then(customerData => {
+                    if (customerData.success) {
+                        document.getElementById('customer-name').value = customerData.name;
+                        
+                        // Now fetch the customer's pending orders
+                        return fetch(`/api/customer/${customerId}/orders/`);
+                    } else {
+                        throw new Error('Failed to fetch customer details');
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const orders = data.orders;
+                        
+                        // Populate order checkboxes
+                        if (orders.length === 0) {
+                            orderCheckboxes.innerHTML = '<p class="no-orders">No pending orders found for this customer</p>';
+                        } else {
+                            let html = '';
+                            orders.forEach(order => {
+                                html += `
+                                    <div class="order-checkbox">
+                                        <input type="checkbox" id="order-${order.order_id}" name="orders[]" value="${order.order_id}" data-amount="${order.total_amount}">
+                                        <label for="order-${order.order_id}">
+                                            <span class="order-id">${order.order_id}</span>
+                                            <span class="order-date">${order.order_date}</span>
+                                            <span class="order-amount">$${parseFloat(order.total_amount).toFixed(2)}</span>
+                                        </label>
+                                    </div>
+                                `;
+                            });
+                            orderCheckboxes.innerHTML = html;
+                            
+                            // Add change event listeners to the checkboxes
+                            document.querySelectorAll('input[name="orders[]"]').forEach(checkbox => {
+                                checkbox.addEventListener('change', updateInvoiceItems);
+                            });
+                        }
+                    } else {
+                        orderCheckboxes.innerHTML = '<p class="error-orders">Error loading orders: ' + data.error + '</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching orders:', error);
+                    orderCheckboxes.innerHTML = '<p class="error-orders">Error loading orders. Please try again.</p>';
+                });
+        }
+        
+        // Function to update invoice items based on selected orders
+        function updateInvoiceItems() {
+            const selectedOrders = document.querySelectorAll('input[name="orders[]"]:checked');
+            const invoiceItems = document.getElementById('invoice-items');
+            
+            // Clear existing items
+            invoiceItems.innerHTML = '';
+            
+            // Add selected orders as invoice items
+            let subtotal = 0;
+            
+            selectedOrders.forEach((order, index) => {
+                const orderId = order.value;
+                const amount = parseFloat(order.getAttribute('data-amount'));
+                subtotal += amount;
+                
+                // Add item to table
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${orderId}</td>
+                    <td>${amount.toFixed(2)}</td>
+                    <td>1</td>
+                    <td>${amount.toFixed(2)}</td>
+                `;
+                invoiceItems.appendChild(row);
+            });
+            
+            // Update totals
+            const total = subtotal;
+            
+            // Update display
+            document.getElementById('total-display').textContent = total.toFixed(2);
+            
+            // Update form fields
+            document.getElementById('total').value = total.toFixed(2);
+        }
+        
+        // Search functionality
+        const searchInput = document.getElementById('invoice-search');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function() {
+                const searchText = this.value.toLowerCase();
+                const rows = document.querySelectorAll('tbody tr');
+                
+                rows.forEach(row => {
+                    const invoiceId = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                    const customer = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+                    
+                    if (invoiceId.includes(searchText) || customer.includes(searchText)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Delete button click handler
+        const deleteBtns = document.querySelectorAll('.delete-btn');
+        deleteBtns.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                // No confirmation dialog, just proceed with the deletion
+            });
+        });
+        
+        // Show toast message if provided in URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const message = urlParams.get('message');
+        const error = urlParams.get('error');
+        
+        if (message) {
+            showToast(message, false);
+        } else if (error) {
+            showToast(error, true);
+        }
+        
+        // Helper function to show toast notifications
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast-notification');
+            if (!toast) return;
+            
+            toast.textContent = message;
+            toast.className = 'toast';
+            if (isError) toast.classList.add('error');
+            
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    });
+</script>
+{% endblock %}
+
+    <style>
+        /* Action buttons styling */
+        .actions {
+            position: relative;
+            display: flex;
+            gap: 5px;
+        }
+        
+    .view-invoice-btn, .edit-invoice-btn, .download-invoice-btn, .delete-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+    .view-invoice-btn:hover, .edit-invoice-btn:hover, .download-invoice-btn:hover, .delete-btn:hover {
+            background-color: #e9ecef;
+        }
+        
+        .view-invoice-btn i {
+            color: #3a57e8;
+        }
+        
+        .edit-invoice-btn i {
+            color: #079aa2;
+        }
+        
+        .download-invoice-btn i {
+            color: #1aa053;
+        }
+        
+    .delete-btn i {
+        color: #c03221;
+        }
+        
+        /* Invoice view styles */
+        .invoice-view {
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+    /* Invoice Generator Specific Styles */
+        .invoice-generator {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 992px) {
+            .invoice-generator {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .invoice-form-container {
+            grid-column: 1;
+        }
+
+        .invoice-preview-container {
+            grid-column: 2;
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        background-color: #f8f9fa;
+            border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+        }
+
+        @media (max-width: 991px) {
+            .invoice-form-container, .invoice-preview-container {
+                grid-column: 1;
+            }
+        }
+
+        .form-section {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-section h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+    /* Order selection checkboxes */
+        .order-selection {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .order-checkbox-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .order-checkbox-item:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+        }
+
+        .order-checkbox-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
+
+        .order-checkbox-item .order-date {
+            margin-left: auto;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .order-checkbox-item .order-total {
+            margin-left: 15px;
+            font-weight: bold;
+        }
+
+        .no-orders {
+            color: #999;
+            text-align: center;
+            padding: 20px 0;
+        }
+    
+    /* Tabs container styles */
+    .tabs-container {
+        margin-bottom: 30px;
+    }
+    
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 15px;
+    }
+    
+    .tab-btn {
+        padding: 12px 20px;
+        border: none;
+        background: none;
+        font-weight: 500;
+        color: #495057;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        margin-right: 10px;
+    }
+    
+    .tab-btn.active {
+        color: #3a57e8;
+        border-bottom: 3px solid #3a57e8;
+    }
+    
+    /* Invoice items table */
+    .invoice-items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+    
+    .invoice-items-table th {
+        background-color: #f8f9fa;
+        padding: 10px;
+        text-align: left;
+        font-weight: 500;
+        border-bottom: 2px solid #eee;
+    }
+    
+    .invoice-items-table td {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .invoice-items-table tfoot td {
+        font-weight: 500;
+    }
+    
+    .invoice-items-table .total-row td {
+        font-weight: bold;
+        border-top: 2px solid #eee;
+    }
+    
+    .text-right {
+        text-align: right;
+    }
+    
+    /* Form actions */
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .primary-btn, .secondary-btn {
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+    }
+    
+    .primary-btn {
+        background-color: #3a57e8;
+        color: white;
+    }
+    
+    .secondary-btn {
+        background-color: #f0f0f0;
+        color: #333;
+    }
+    
+    /* Toast notification */
+    .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #1aa053;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1100;
+        display: none;
+        animation: toastFadeIn 0.3s ease, toastFadeOut 0.3s ease 2.7s;
+    }
+    
+    .toast.error {
+        background-color: #c03221;
+    }
+    
+    @keyframes toastFadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes toastFadeOut {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(20px); }
+    }
+    
+    /* Preview placeholder */
+    .placeholder-message {
+                            display: flex;
+        flex-direction: column;
+                            align-items: center;
+        justify-content: center;
+        padding: 40px;
+        color: #999;
+    }
+    
+    .placeholder-message i {
+        font-size: 48px;
+        margin-bottom: 20px;
+        color: #ddd;
+                        }
+                    </style>

@@ -1,0 +1,272 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Invoice {{ invoice_id }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            background-color: white;
+        }
+        .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            background-color: white;
+        }
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .company-logo img {
+            max-width: 100px;
+            height: auto;
+        }
+        .invoice-title {
+            font-size: 16px;
+            color: #333;
+            text-align: right;
+            font-weight: bold;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-top: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            margin: 25px 0;
+        }
+        .customer-info {
+            display: flex;
+            justify-content: space-between;
+            margin: 30px 0;
+            padding: 0 10px;
+        }
+        .customer-section {
+            width: 48%;
+        }
+        .company-section {
+            width: 48%;
+            text-align: right;
+        }
+        .address-box h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .address-box p {
+            margin: 3px 0;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 13px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background-color: #f9f9f9;
+            font-weight: bold;
+            color: #333;
+        }
+        .total-section {
+            text-align: right;
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+        .total-row {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 50px;
+        }
+        .signature-box {
+            width: 45%;
+        }
+        .signature-line {
+            border-top: 1px solid #333;
+            margin-bottom: 5px;
+        }
+        .invoice-container {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            padding-bottom: 50px;
+        }
+        
+        .invoice-content {
+            flex: 1;
+        }
+        
+        .invoice-footer {
+            margin-top: auto;
+            padding-top: 50px;
+        }
+        
+        .signature-section {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+        
+        .signature {
+            width: 45%;
+            text-align: center;
+        }
+        
+        .signature-line {
+            border-bottom: 1px solid #000;
+            margin-bottom: 5px;
+            width: 100%;
+        }
+        
+        .notes-section {
+            margin-top: 5px;
+            padding: 5px 0;
+            font-size: 14px;
+            page-break-inside: avoid;
+            display: block;
+            width: 100%;
+            clear: both;
+        }
+        
+        .notes-section ol {
+            padding-left: 20px;
+            margin-bottom: 20px;
+            list-style-position: outside;
+        }
+        
+        .notes-section li {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            padding: 10px;
+            font-size: 14px;
+            color: #777;
+        }
+        .note {
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <div class="invoice-content">
+            <div class="invoice-header">
+                <div class="company-logo">
+                    <img src="{{ logo_url|default:'https://via.placeholder.com/150x50?text=CHMS' }}" alt="CHMS Logo">
+                </div>
+                <div class="invoice-title">CHMS HOME<p>AOKUABCES FZCO</p></div>
+            </div>
+            
+            <div class="info-row">
+                <div><strong>Date:</strong> {{ date }}</div>
+                <div><strong>DELIVERY NOTE</strong></div>
+                <div><strong>Invoice No:</strong> {{ invoice_id }}</div>
+            </div>
+            
+            <div class="customer-info">
+                <div class="customer-section">
+                    <h3>Invoiced To:</h3>
+                    <p>{{ customer.name }}</p>
+                    {% if customer.address %}<p>{{ customer.address }}</p>{% endif %}
+                    {% if customer.email %}<p>{{ customer.email }}</p>{% endif %}
+                    {% if customer.phone %}<p>{{ customer.phone }}</p>{% endif %}
+                </div>
+                <div class="company-section">
+                    <h3>Pay To:</h3>
+                    <p>contact@chmshop.com</p>
+                    <p>+1 (555) 123-4567</p>
+                </div>
+            </div>
+            
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>SL</th>
+                        <th>Description</th>
+                        <th>Rate</th>
+                        <th>QTY</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in all_items %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ item.product_name }}</td>
+                        <td>{{ item.price|floatformat:2 }} AED</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.subtotal|floatformat:2 }} AED</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="total-section">
+                <div class="total-row">
+                    Total: {{ total_amount|floatformat:2 }} AED
+                </div>
+            </div>
+        </div>
+        
+        <div class="invoice-footer">
+            <!-- Signature section -->
+            <div class="signature-section">
+                <div class="signature">
+                    <div class="signature-line"></div>
+                    <p>Customer Signature</p>
+                </div>
+                <div class="signature">
+                    <div class="signature-line"></div>
+                    <p>Company Signature</p>
+                </div>
+            </div>
+            
+            <!-- Notes section -->
+            <div class="notes-section">
+                <p><strong>Notes:</strong></p>
+                <ol>
+                    <li>The title of the above goods does not pass to the purchase until said goods are fully paid.</li>
+                    <li>No including delivery and fixing.</li>
+                    <li>Stone is product of nature and its is subject to variation of color and veins.</li>
+                </ol>
+            </div>
+            <div style="clear: both; height: 20px;"></div>
+            
+            <!-- Footer -->
+            <div class="footer">
+                <p>Thank you for your business!</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
