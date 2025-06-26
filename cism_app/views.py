@@ -16,7 +16,14 @@ from django.core.files.base import ContentFile
 import base64
 import json
 import os
+import subprocess
 from django.conf import settings
+# Import necessary libraries
+from django.core.files.base import ContentFile
+import os
+import tempfile
+from django.template.loader import render_to_string
+from html2image import Html2Image
 
 # Authentication views
 def login_view(request):
@@ -841,23 +848,19 @@ def generate_invoice_for_multiple_orders(request, customer_id, order_ids):
     }
     
     try:
-        # Import necessary libraries
-        from django.core.files.base import ContentFile
-        import os
-        import tempfile
-        from django.template.loader import render_to_string
-        from html2image import Html2Image
+        # Create a temporary directory in the current project directory
+        project_temp_base = os.path.join(settings.BASE_DIR, 'temp_invoices')
+        os.makedirs(project_temp_base, exist_ok=True)
         
-        # Create a temporary directory for the output
-        output_dir = tempfile.mkdtemp()
+        output_dir = tempfile.mkdtemp(dir=project_temp_base)
         output_file = f'invoice_{invoice.invoice_id}.png'
         output_path = os.path.join(output_dir, output_file)
         
         # Render the invoice template to HTML string
         html_string = render_to_string('invoice_template.html', context)
         
-        # Create a temporary HTML file
-        html_temp = tempfile.NamedTemporaryFile(suffix='.html', delete=False)
+        # Create a temporary HTML file in the project temp directory
+        html_temp = tempfile.NamedTemporaryFile(suffix='.html', delete=False, dir=output_dir)
         html_temp_path = html_temp.name
         html_temp.close()
         
@@ -865,78 +868,100 @@ def generate_invoice_for_multiple_orders(request, customer_id, order_ids):
         with open(html_temp_path, 'w', encoding='utf-8') as html_file:
             html_file.write(html_string)
         
-        # Use html2image to convert HTML to PNG
+        # Try multiple PNG generation methods
+        png_generated = False
+        
+        # Method 1: Try wkhtmltoimage (simplest)
         try:
-            # Initialize the Html2Image converter
-            hti = Html2Image(output_path=output_dir)
+            print(f"🔧 Trying wkhtmltoimage for invoice {invoice.invoice_id}...")
             
-            # Set the size of the output image
-            hti.size = (800, 1000)  # Width, height in pixels
+            cmd = [
+                'wkhtmltoimage',
+                '--format', 'png',
+                '--width', '800',
+                '--height', '1000',
+                '--quality', '100',
+                '--enable-local-file-access',
+                html_temp_path,
+                output_path
+            ]
             
-            # Convert HTML file to PNG
-            hti.screenshot(
-                html_file=html_temp_path,
-                save_as=output_file
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True)
             
-            # Check if the file was created
-            if os.path.exists(output_path):
-                # Save the PNG to the invoice model
+            if result.returncode == 0 and os.path.exists(output_path):
+                print(f"✅ PNG created with wkhtmltoimage: {output_path}")
                 with open(output_path, 'rb') as f:
                     invoice.invoice_image.save(
                         output_file,
                         ContentFile(f.read())
                     )
+                png_generated = True
             else:
-                # Fallback to direct HTML conversion if file wasn't created
-                png_paths = hti.screenshot(
-                    html_str=html_string,
-                    save_as=output_file
-                )
-                
-                if png_paths and os.path.exists(png_paths[0]):
-                    # Save the PNG to the invoice model
-                    with open(png_paths[0], 'rb') as f:
-                        invoice.invoice_image.save(
-                            output_file,
-                            ContentFile(f.read())
-                        )
-                else:
-                    # If all PNG methods fail, fall back to PDF
-                    from io import BytesIO
-                    from xhtml2pdf import pisa
-                    
-                    # Create a BytesIO buffer for the PDF
-                    buffer = BytesIO()
-                    
-                    # Generate PDF from HTML
-                    pisa.CreatePDF(html_string, dest=buffer)
-                    
-                    # Save the PDF to the invoice model
-                    buffer.seek(0)
-                    invoice.invoice_image.save(
-                        f'invoice_{invoice.invoice_id}.pdf',
-                        ContentFile(buffer.getvalue())
-                    )
-                    buffer.close()
+                print(f"❌ wkhtmltoimage failed: {result.stderr}")
         except Exception as e:
-            # If PNG generation fails, fall back to PDF
-            from io import BytesIO
-            from xhtml2pdf import pisa
-            
-            # Create a BytesIO buffer for the PDF
-            buffer = BytesIO()
-            
-            # Generate PDF from HTML
-            pisa.CreatePDF(html_string, dest=buffer)
-            
-            # Save the PDF to the invoice model
-            buffer.seek(0)
-            invoice.invoice_image.save(
-                f'invoice_{invoice.invoice_id}.pdf',
-                ContentFile(buffer.getvalue())
-            )
-            buffer.close()
+            print(f"❌ wkhtmltoimage not available: {str(e)}")
+        
+        # Method 2: Try html2image (if wkhtmltoimage failed)
+        if not png_generated:
+            try:
+                print(f"🔧 Trying html2image for invoice {invoice.invoice_id}...")
+                
+                # Check if Chrome is available
+                chrome_path = getattr(settings, 'CHROME_PATH', None)
+                if not chrome_path:
+                    import shutil
+                    chrome_path = shutil.which('chromium-browser') or shutil.which('google-chrome') or shutil.which('chromium')
+                
+                if chrome_path and os.path.exists(chrome_path):
+                    print(f"✅ Chrome found: {chrome_path}")
+                    
+                    hti = Html2Image(
+                        output_path=output_dir,
+                        browser='chrome',
+                        browser_executable=chrome_path
+                    )
+                    
+                    hti.size = getattr(settings, 'INVOICE_SIZE', (800, 1000))
+                    
+                    hti.screenshot(
+                        html_file=html_temp_path,
+                        save_as=output_file
+                    )
+                    
+                    if os.path.exists(output_path):
+                        print(f"✅ PNG created with html2image: {output_path}")
+                        with open(output_path, 'rb') as f:
+                            invoice.invoice_image.save(
+                                output_file,
+                                ContentFile(f.read())
+                            )
+                        png_generated = True
+                else:
+                    print(f"❌ Chrome not found")
+                    
+            except Exception as e:
+                print(f"❌ html2image failed: {str(e)}")
+        
+        # Fallback to PDF if all PNG methods failed
+        if not png_generated:
+            print(f"🔄 All PNG methods failed, generating PDF...")
+            try:
+                from io import BytesIO
+                from xhtml2pdf import pisa
+                
+                buffer = BytesIO()
+                pisa.CreatePDF(html_string, dest=buffer)
+                
+                buffer.seek(0)
+                invoice.invoice_image.save(
+                    f'invoice_{invoice.invoice_id}.pdf',
+                    ContentFile(buffer.getvalue())
+                )
+                buffer.close()
+                print(f"✅ PDF generated successfully")
+            except Exception as pdf_error:
+                print(f"❌ PDF generation also failed: {str(pdf_error)}")
+                raise Exception("All generation methods failed")
         
         # Clean up temporary files and directory
         try:

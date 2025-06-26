@@ -152,3 +152,22 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Crispy forms
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
+
+# Invoice Generation Settings
+INVOICE_FORMAT = 'PNG'  # Options: 'PNG', 'PDF', 'AUTO'
+INVOICE_SIZE = (800, 1000)  # Width, height in pixels for PNG
+
+# Production Chrome settings for html2image
+import os
+if not DEBUG:  # Production settings
+    CHROME_PATH = '/usr/bin/chromium-browser'
+    CHROME_FLAGS = [
+        '--headless',
+        '--no-sandbox',
+        '--disable-gpu',
+        '--disable-dev-shm-usage',
+        '--disable-extensions',
+        '--disable-plugins'
+    ]
+else:  # Development settings
+    CHROME_PATH = None  # Auto-detect
